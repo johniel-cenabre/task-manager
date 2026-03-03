@@ -10,7 +10,7 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
-      base: '/task-manager/',
+      base: '/',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },

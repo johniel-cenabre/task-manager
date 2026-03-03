@@ -1,5 +1,5 @@
 // REST API client for Task Manager
-const API_BASE_URL = '/api/tasks'
+const API_BASE_URL = '/task-manager/api/tasks'
 
 // Helper function to ensure service worker is ready
 async function ensureServiceWorkerReady() {

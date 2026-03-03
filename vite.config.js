@@ -50,7 +50,7 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true
       },
-      includeAssets: ['favicon.ico'],
+      includeAssets: ['sw.js'],
       manifest: {
         name: 'Task Manager',
         short_name: 'Tasks',
@@ -69,7 +69,9 @@ export default defineConfig({
     port: 3000
   },
   preview: {
-    port: 4173
+    port: 4173,
+    strictPort: true,
+    cors: true
   },
   build: {
     outDir: '..',

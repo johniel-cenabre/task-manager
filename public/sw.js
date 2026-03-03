@@ -171,22 +171,32 @@ async function handleAPIRequest(request) {
     // Ensure DB is initialized
     if (!db) await initDB()
 
+    // Find the 'api' index in the path parts (handles base paths like /task-manager/api/tasks)
+    const apiIndex = parts.findIndex(part => part === 'api')
+    if (apiIndex === -1) {
+      return sendErrorResponse('Invalid API route', 404)
+    }
+
+    // Extract API route parts (everything after 'api')
+    const apiParts = parts.slice(apiIndex + 1)
+    const apiPartsLength = apiParts.length
+
     // Route: GET /api/tasks
-    if (method === 'GET' && parts.length === 2 && parts[0] === 'api' && parts[1] === 'tasks') {
+    if (method === 'GET' && apiPartsLength === 1 && apiParts[0] === 'tasks') {
       const tasks = await getAllTasks()
       return sendJSONResponse(tasks)
     }
 
     // Route: GET /api/tasks/status/:status
-    if (method === 'GET' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'tasks' && parts[2] === 'status') {
-      const status = parts[3]
+    if (method === 'GET' && apiPartsLength === 3 && apiParts[0] === 'tasks' && apiParts[1] === 'status') {
+      const status = apiParts[2]
       const tasks = await getTasksByStatus(status)
       return sendJSONResponse(tasks)
     }
 
     // Route: GET /api/tasks/:id
-    if (method === 'GET' && parts.length === 3 && parts[0] === 'api' && parts[1] === 'tasks') {
-      const id = parseInt(parts[2])
+    if (method === 'GET' && apiPartsLength === 2 && apiParts[0] === 'tasks') {
+      const id = parseInt(apiParts[1])
       if (isNaN(id)) {
         return sendErrorResponse('Invalid task ID', 400)
       }
@@ -198,15 +208,15 @@ async function handleAPIRequest(request) {
     }
 
     // Route: POST /api/tasks
-    if (method === 'POST' && parts.length === 2 && parts[0] === 'api' && parts[1] === 'tasks') {
+    if (method === 'POST' && apiPartsLength === 1 && apiParts[0] === 'tasks') {
       const taskData = await request.json()
       const task = await createTask(taskData)
       return sendJSONResponse(task, 201)
     }
 
     // Route: PUT /api/tasks/:id
-    if (method === 'PUT' && parts.length === 3 && parts[0] === 'api' && parts[1] === 'tasks') {
-      const id = parseInt(parts[2])
+    if (method === 'PUT' && apiPartsLength === 2 && apiParts[0] === 'tasks') {
+      const id = parseInt(apiParts[1])
       if (isNaN(id)) {
         return sendErrorResponse('Invalid task ID', 400)
       }
@@ -216,8 +226,8 @@ async function handleAPIRequest(request) {
     }
 
     // Route: DELETE /api/tasks/:id
-    if (method === 'DELETE' && parts.length === 3 && parts[0] === 'api' && parts[1] === 'tasks') {
-      const id = parseInt(parts[2])
+    if (method === 'DELETE' && apiPartsLength === 2 && apiParts[0] === 'tasks') {
+      const id = parseInt(apiParts[1])
       if (isNaN(id)) {
         return sendErrorResponse('Invalid task ID', 400)
       }
@@ -255,9 +265,18 @@ self.addEventListener('message', (event) => {
 // Intercept fetch requests to /api/*
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
+  const pathname = url.pathname
   
-  // Only handle requests to /api/*
-  if (url.pathname.startsWith('/api/')) {
+  // Handle favicon.ico requests - return 204 No Content to prevent 404 errors
+  if (pathname.endsWith('/favicon.ico')) {
+    event.respondWith(new Response(null, { status: 204 }))
+    return
+  }
+  
+  // Handle requests to /api/* or /task-manager/api/* or any base path + /api/*
+  // Check if pathname contains /api/ (to handle base paths like /task-manager/api/)
+  if (pathname.includes('/api/')) {
+    console.log('Service Worker intercepting API request:', pathname)
     event.respondWith(handleAPIRequest(event.request.clone()))
   }
   // For all other requests, use network first strategy

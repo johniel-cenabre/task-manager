@@ -3,12 +3,14 @@ import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  base: '/task-manager/',
   root: 'src',
   publicDir: '../public',
   plugins: [
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
+      base: '/task-manager/',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },

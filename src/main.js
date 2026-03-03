@@ -6,9 +6,32 @@ import App from './App.vue'
 async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
-      })
+      // Get base path from Vite's BASE_URL
+      const basePath = import.meta.env.BASE_URL || '/task-manager/'
+      // Remove trailing slash for path construction
+      const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath
+      const swPath = `${base}/sw.js`
+      const scope = basePath
+      
+      console.log('Attempting to register service worker at:', swPath, 'with scope:', scope)
+      console.log('Base URL:', import.meta.env.BASE_URL)
+      console.log('Current location:', window.location.href)
+      
+      // Try to register the service worker
+      let registration
+      try {
+        registration = await navigator.serviceWorker.register(swPath, {
+          scope: scope
+        })
+      } catch (registerError) {
+        console.warn('Failed to register with base path, trying root path:', registerError)
+        // Fallback: try root path if base path fails (for development/preview)
+        const rootPath = '/sw.js'
+        registration = await navigator.serviceWorker.register(rootPath, {
+          scope: '/'
+        })
+        console.log('Service Worker registered with root path fallback')
+      }
       console.log('Service Worker registered:', registration)
       
       // Wait for service worker to be activated

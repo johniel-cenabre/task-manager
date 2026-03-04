@@ -45,12 +45,10 @@ export default defineConfig({
       registerType: null,
       base: '/task-manager/',
       scope: '/task-manager/',
-      strategies: 'generateSW',
+      strategies: 'injectManifest',
       injectRegister: null,
-      workbox: {
-        cleanupOutdatedCaches: true
-      },
-      includeAssets: ['sw.js'],
+      srcDir: '.',
+      filename: 'sw.js',
       manifest: {
         name: 'Task Manager',
         short_name: 'Tasks',

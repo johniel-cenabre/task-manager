@@ -34,18 +34,18 @@ async function waitForServiceWorkerControl(registration) {
     console.log('Service worker is controlling the page')
   } else {
     // Check if we've already tried reloading (prevent infinite loop)
-    const hasReloaded = sessionStorage.getItem('sw-reload-attempted')
-    if (!hasReloaded) {
-      console.warn('Service worker registered but not controlling the page. Reloading to activate...')
-      sessionStorage.setItem('sw-reload-attempted', 'true')
+    // const hasReloaded = sessionStorage.getItem('sw-reload-attempted')
+    // if (!hasReloaded) {
+    //   console.warn('Service worker registered but not controlling the page. Reloading to activate...')
+    //   sessionStorage.setItem('sw-reload-attempted', 'true')
       // Reload the page to get service worker control
       // This ensures the service worker intercepts requests immediately
       window.location.reload()
-      return // Exit early since we're reloading
-    } else {
-      console.warn('Service worker still not controlling after reload. It may need manual activation.')
-      sessionStorage.removeItem('sw-reload-attempted') // Reset for next session
-    }
+    //   return // Exit early since we're reloading
+    // } else {
+    //   console.warn('Service worker still not controlling after reload. It may need manual activation.')
+    //   sessionStorage.removeItem('sw-reload-attempted') // Reset for next session
+    // }
   }
 }
 
@@ -72,14 +72,6 @@ function getServiceWorkerPath() {
   
   // Service worker path is in the same directory
   const swPath = dirPath + '/sw.js'
-  
-  console.log('Computed service worker path:', { 
-    currentPath, 
-    dirPath, 
-    swPath, 
-    scope 
-  })
-  
   return { swPath, scope }
 }
 

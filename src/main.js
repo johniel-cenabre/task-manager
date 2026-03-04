@@ -117,7 +117,6 @@ async function registerServiceWorker() {
       await waitForServiceWorkerControl(registration)
     } catch (error) {
       console.error('Service worker registration failed:', error)
-      registerServiceWorker()
       // Don't block app initialization if service worker fails
     }
   }

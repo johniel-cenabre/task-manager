@@ -1,8 +1,37 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
-import { readdir, unlink } from 'fs/promises'
+import { readdir, unlink, readFile } from 'fs/promises'
 import { join } from 'path'
+
+const BASE = '/task-manager/'
+
+// In dev, serve the legacy API-only SW (no ES imports) so the browser can run it as a classic script
+function devSwPlugin() {
+  let legacySwContent = null
+  return {
+    name: 'dev-sw',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const pathname = req.url?.split('?')[0] || ''
+        if (pathname !== `${BASE}sw.js` && pathname !== '/task-manager/sw.js') {
+          next()
+          return
+        }
+        try {
+          if (!legacySwContent) {
+            const path = join(process.cwd(), 'public', 'sw-api-legacy.js')
+            legacySwContent = await readFile(path, 'utf-8')
+          }
+          res.setHeader('Content-Type', 'application/javascript')
+          res.end(legacySwContent)
+        } catch (e) {
+          next(e)
+        }
+      })
+    }
+  }
+}
 
 // Plugin to clean old workbox files before build
 const cleanWorkboxPlugin = () => {
@@ -40,6 +69,7 @@ export default defineConfig({
   publicDir: '../public',
   plugins: [
     vue(),
+    devSwPlugin(),
     cleanWorkboxPlugin(),
     VitePWA({
       registerType: null,

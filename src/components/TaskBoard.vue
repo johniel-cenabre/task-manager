@@ -230,15 +230,23 @@ const loadTasks = async () => {
     for (const task of list) {
       if (task.status === 'done' && isRepeatOccurrencePast(task)) {
         await taskDB.updateTask(task.id, { status: 'todo' })
+        task.status = 'todo'
       }
     }
-    list = await taskDB.getAllTasks()
-    for (const task of list) {
-      if (task.status === 'done' && !hasRepeat(task) && isUpdatedMoreThanDaysAgo(task.updatedAt, 3)) {
-        await taskDB.deleteTask(task.id)
-      }
+    const toDelete = list.filter(
+      (task) =>
+        task.status === 'done' &&
+        !hasRepeat(task) &&
+        isUpdatedMoreThanDaysAgo(task.updatedAt, 3)
+    )
+    for (const task of toDelete) {
+      await taskDB.deleteTask(task.id)
     }
-    tasks.value = await taskDB.getAllTasks()
+    if (toDelete.length > 0) {
+      const deleteIds = new Set(toDelete.map((t) => t.id))
+      list = list.filter((t) => !deleteIds.has(t.id))
+    }
+    tasks.value = list
   } catch (error) {
     console.error('Error loading tasks:', error)
   }
@@ -249,6 +257,8 @@ const getTasksByStatus = (status) => {
 }
 
 const handleTaskDrop = async (taskId, newStatus) => {
+  const task = tasks.value.find((t) => t.id === taskId)
+  if (task && task.status === newStatus) return
   try {
     await taskDB.updateTask(taskId, { status: newStatus })
     await loadTasks()
@@ -313,6 +323,32 @@ function formToRepeat() {
   return null
 }
 
+function isUpdatePayloadUnchanged(task, payload) {
+  if (task.title !== payload.title) return false
+  if ((task.description || '') !== (payload.description || '')) return false
+  if ((task.priority || 'Medium') !== payload.priority) return false
+  if (task.status !== payload.status) return false
+  if (!!task.deadlineFromRepeat !== payload.deadlineFromRepeat) return false
+  const taskDeadline = (task.repeat && task.deadlineFromRepeat) ? null : (task.deadline ? task.deadline.slice(0, 10) : null)
+  const payloadDeadline = payload.deadline || null
+  if (taskDeadline !== payloadDeadline) return false
+  const tr = task.repeat
+  const pr = payload.repeat
+  if (tr === pr) return true
+  if (!tr && !pr) return true
+  if (!tr || !pr) return false
+  if (tr === 'daily' && pr === 'daily') return true
+  if (tr === 'daily' || pr === 'daily') return false
+  if (tr.type !== pr.type) return false
+  if (tr.type === 'weekdays') {
+    const td = (tr.days || []).slice().sort((a, b) => a - b)
+    const pd = (pr.days || []).slice().sort((a, b) => a - b)
+    return td.length === pd.length && td.every((d, i) => d === pd[i])
+  }
+  if (tr.type === 'monthly') return tr.day === pr.day
+  return false
+}
+
 const handleTaskEdit = (task) => {
   editingTaskId.value = task.id
   isEditMode.value = true
@@ -359,6 +395,7 @@ const handleCreateTask = async () => {
 
 const handleUpdateTask = async () => {
   try {
+    const currentTask = tasks.value.find((t) => t.id === editingTaskId.value)
     const repeat = formToRepeat()
     const payload = {
       title: newTask.value.title,
@@ -368,6 +405,10 @@ const handleUpdateTask = async () => {
       repeat: repeat || null,
       deadlineFromRepeat: repeat ? newTask.value.deadlineFromRepeat : false,
       deadline: repeat && newTask.value.deadlineFromRepeat ? null : (newTask.value.deadline || null)
+    }
+    if (currentTask && isUpdatePayloadUnchanged(currentTask, payload)) {
+      closeModal()
+      return
     }
     await taskDB.updateTask(editingTaskId.value, payload)
     await loadTasks()

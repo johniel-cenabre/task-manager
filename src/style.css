@@ -20,6 +20,20 @@
     @apply shadow-2xl;
     touch-action: none;
   }
+
+  /* Deadline: today or tomorrow → orange gradient */
+  .task-card.deadline-soon {
+    @apply bg-gradient-to-br from-orange-300 via-amber-200 to-orange-200;
+    @apply border border-orange-300/60;
+    @apply dark:from-orange-700/70 dark:via-amber-700/60 dark:to-orange-600/70 dark:border-orange-500/40;
+  }
+
+  /* Deadline: yesterday (overdue) → red gradient */
+  .task-card.deadline-overdue {
+    @apply bg-gradient-to-br from-red-300 via-rose-200 to-red-200;
+    @apply border border-red-300/60;
+    @apply dark:from-red-700/70 dark:via-rose-700/60 dark:to-red-600/70 dark:border-red-500/40;
+  }
   
   .column {
     @apply rounded-lg p-4 transition-colors duration-200;

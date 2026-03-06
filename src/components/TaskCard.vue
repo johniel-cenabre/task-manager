@@ -10,7 +10,8 @@
     :class="[
       'task-card',
       isDragging ? 'opacity-50 scale-95' : 'opacity-100',
-      isTouchDragging ? 'touch-dragging z-50' : ''
+      isTouchDragging ? 'touch-dragging z-50' : '',
+      deadlineCardClass
     ]"
     :style="touchDragStyle"
   >
@@ -56,8 +57,11 @@
     <p v-if="task.description" class="text-gray-600 dark:text-gray-300 text-sm mb-3">
       {{ task.description }}
     </p>
-    <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+    <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 flex-wrap gap-1">
       <span>{{ formatDate(task.createdAt) }}</span>
+      <span v-if="effectiveDeadline" class="text-xs">
+        Due {{ formatDate(effectiveDeadline) }}
+      </span>
       <span
         :class="[
           'px-2 py-1 rounded-full text-xs font-medium',
@@ -71,7 +75,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { getNextDeadlineFromRepeat, toDateString as toDateStringUtil } from '../utils/repeat.js'
 
 const props = defineProps({
   task: {
@@ -227,4 +232,39 @@ const getPriorityClass = (priority) => {
   }
   return priorityMap[priority] || priorityMap.Medium
 }
+
+/** Returns date-only string YYYY-MM-DD for a given date (local). */
+function toDateString(date) {
+  return toDateStringUtil(date)
+}
+
+/** When repeat + deadlineFromRepeat: next deadline from repeat; else task.deadline. */
+const effectiveDeadline = computed(() => {
+  const task = props.task
+  if (task.repeat && task.deadlineFromRepeat) {
+    return getNextDeadlineFromRepeat(task)
+  }
+  return task.deadline || null
+})
+
+/** deadlineState: '' | 'deadline-soon' (today/tomorrow) | 'deadline-overdue' (yesterday). Not applied when status is done. */
+const deadlineCardClass = computed(() => {
+  if (props.task.status === 'done') return ''
+  const deadline = effectiveDeadline.value
+  if (!deadline) return ''
+  const deadlineDate = new Date(deadline)
+  if (Number.isNaN(deadlineDate.getTime())) return ''
+  const today = new Date()
+  const todayStr = toDateString(today)
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayStr = toDateString(yesterday)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowStr = toDateString(tomorrow)
+  const deadlineStr = toDateString(deadlineDate)
+  if (deadlineStr === yesterdayStr) return 'deadline-overdue'
+  if (deadlineStr === todayStr || deadlineStr === tomorrowStr) return 'deadline-soon'
+  return ''
+})
 </script>

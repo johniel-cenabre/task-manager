@@ -87,6 +87,64 @@
               <option value="done">Done</option>
             </select>
           </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Repeat (optional)
+            </label>
+            <select
+              v-model="newTask.repeatType"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="none">None</option>
+              <option value="daily">Every day</option>
+              <option value="weekdays">Days of week</option>
+              <option value="monthly">Date every month</option>
+            </select>
+            <div v-if="newTask.repeatType === 'weekdays'" class="mt-2 flex flex-wrap gap-2">
+              <label
+                v-for="(label, i) in weekdayLabels"
+                :key="i"
+                class="inline-flex items-center gap-1 cursor-pointer"
+              >
+                <input
+                  v-model="newTask.repeatWeekdays[i]"
+                  type="checkbox"
+                  class="rounded border-gray-300 dark:border-gray-600"
+                />
+                <span class="text-sm text-gray-700 dark:text-gray-300">{{ label }}</span>
+              </label>
+            </div>
+            <div v-if="newTask.repeatType === 'monthly'" class="mt-2">
+              <input
+                v-model.number="newTask.repeatMonthDay"
+                type="number"
+                min="1"
+                max="31"
+                class="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              />
+              <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">of every month</span>
+            </div>
+          </div>
+          <div v-if="newTask.repeatType !== 'none'" class="mb-4">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input
+                v-model="newTask.deadlineFromRepeat"
+                type="checkbox"
+                class="rounded border-gray-300 dark:border-gray-600"
+              />
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Use deadline from repeat</span>
+            </label>
+          </div>
+          <div v-else class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Deadline (optional)
+            </label>
+            <input
+              v-model="newTask.deadline"
+              type="date"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
           <div class="flex gap-3">
             <button
               type="submit"
@@ -113,17 +171,25 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import TaskColumn from './TaskColumn.vue'
 import GradientButton from '../common/GradientButton.vue'
 import { taskDB } from '../utils/db.js'
+import { hasRepeat, isRepeatOccurrencePast, isUpdatedMoreThanDaysAgo, WEEKDAY_LABELS } from '../utils/repeat.js'
 
 const tasks = ref([])
 const showModal = ref(false)
 const isEditMode = ref(false)
 const editingTaskId = ref(null)
 const scrollContainer = ref(null)
+const weekdayLabels = WEEKDAY_LABELS
+
 const newTask = ref({
   title: '',
   description: '',
   priority: 'Medium',
-  status: 'todo'
+  status: 'todo',
+  deadline: '',
+  repeatType: 'none',
+  repeatWeekdays: [false, false, false, false, false, false, false],
+  repeatMonthDay: 1,
+  deadlineFromRepeat: false
 })
 
 let autoScrollAnimationFrame = null
@@ -160,6 +226,18 @@ onUnmounted(() => {
 
 const loadTasks = async () => {
   try {
+    let list = await taskDB.getAllTasks()
+    for (const task of list) {
+      if (task.status === 'done' && isRepeatOccurrencePast(task)) {
+        await taskDB.updateTask(task.id, { status: 'todo' })
+      }
+    }
+    list = await taskDB.getAllTasks()
+    for (const task of list) {
+      if (task.status === 'done' && !hasRepeat(task) && isUpdatedMoreThanDaysAgo(task.updatedAt, 3)) {
+        await taskDB.deleteTask(task.id)
+      }
+    }
     tasks.value = await taskDB.getAllTasks()
   } catch (error) {
     console.error('Error loading tasks:', error)
@@ -190,15 +268,55 @@ const handleTaskDelete = async (taskId) => {
   }
 }
 
-const handleTaskEdit = (task) => {
-  editingTaskId.value = task.id
-  isEditMode.value = true
-  newTask.value = {
+function taskToForm(task) {
+  const t = {
     title: task.title,
     description: task.description || '',
     priority: task.priority || 'Medium',
-    status: task.status
+    status: task.status,
+    deadline: task.deadline ? task.deadline.slice(0, 10) : '',
+    repeatType: 'none',
+    repeatWeekdays: [false, false, false, false, false, false, false],
+    repeatMonthDay: 1,
+    deadlineFromRepeat: !!task.deadlineFromRepeat
   }
+  if (!task.repeat) return t
+  if (task.repeat === 'daily') {
+    t.repeatType = 'daily'
+    return t
+  }
+  if (task.repeat?.type === 'weekdays' && Array.isArray(task.repeat.days)) {
+    t.repeatType = 'weekdays'
+    task.repeat.days.forEach((d) => { t.repeatWeekdays[d] = true })
+    return t
+  }
+  if (task.repeat?.type === 'monthly' && typeof task.repeat.day === 'number') {
+    t.repeatType = 'monthly'
+    t.repeatMonthDay = Math.min(31, Math.max(1, task.repeat.day))
+    return t
+  }
+  return t
+}
+
+function formToRepeat() {
+  const type = newTask.value.repeatType
+  if (type === 'none') return null
+  if (type === 'daily') return 'daily'
+  if (type === 'weekdays') {
+    const days = newTask.value.repeatWeekdays.map((v, i) => (v ? i : null)).filter((x) => x != null)
+    return days.length ? { type: 'weekdays', days } : null
+  }
+  if (type === 'monthly') {
+    const day = Math.min(31, Math.max(1, Number(newTask.value.repeatMonthDay) || 1))
+    return { type: 'monthly', day }
+  }
+  return null
+}
+
+const handleTaskEdit = (task) => {
+  editingTaskId.value = task.id
+  isEditMode.value = true
+  newTask.value = taskToForm(task)
   showModal.value = true
 }
 
@@ -210,18 +328,28 @@ const closeModal = () => {
     title: '',
     description: '',
     priority: 'Medium',
-    status: 'todo'
+    status: 'todo',
+    deadline: '',
+    repeatType: 'none',
+    repeatWeekdays: [false, false, false, false, false, false, false],
+    repeatMonthDay: 1,
+    deadlineFromRepeat: false
   }
 }
 
 const handleCreateTask = async () => {
   try {
-    await taskDB.createTask({
+    const repeat = formToRepeat()
+    const payload = {
       title: newTask.value.title,
       description: newTask.value.description,
       priority: newTask.value.priority,
-      status: newTask.value.status
-    })
+      status: newTask.value.status,
+      repeat: repeat || null,
+      deadlineFromRepeat: repeat ? newTask.value.deadlineFromRepeat : false,
+      deadline: repeat && newTask.value.deadlineFromRepeat ? null : (newTask.value.deadline || null)
+    }
+    await taskDB.createTask(payload)
     await loadTasks()
     closeModal()
   } catch (error) {
@@ -231,12 +359,17 @@ const handleCreateTask = async () => {
 
 const handleUpdateTask = async () => {
   try {
-    await taskDB.updateTask(editingTaskId.value, {
+    const repeat = formToRepeat()
+    const payload = {
       title: newTask.value.title,
       description: newTask.value.description,
       priority: newTask.value.priority,
-      status: newTask.value.status
-    })
+      status: newTask.value.status,
+      repeat: repeat || null,
+      deadlineFromRepeat: repeat ? newTask.value.deadlineFromRepeat : false,
+      deadline: repeat && newTask.value.deadlineFromRepeat ? null : (newTask.value.deadline || null)
+    }
+    await taskDB.updateTask(editingTaskId.value, payload)
     await loadTasks()
     closeModal()
   } catch (error) {

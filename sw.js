@@ -1214,7 +1214,7 @@ function ce(n) {
 function ie(n, e) {
   ce(n), ae(e);
 }
-ie([{"revision":null,"url":"vite.config.js"},{"revision":null,"url":"tailwind.config.js"},{"revision":null,"url":"sw-api-legacy.js"},{"revision":null,"url":"registerSW.js"},{"revision":null,"url":"postcss.config.js"},{"revision":null,"url":"index.js"},{"revision":null,"url":"index.html"},{"revision":null,"url":"index.css"},{"revision":null,"url":"src/sw.js"},{"revision":null,"url":"src/style.css"},{"revision":null,"url":"src/main.js"},{"revision":null,"url":"src/index.html"},{"revision":null,"url":"src/utils/theme.js"},{"revision":null,"url":"src/utils/db.js"},{"revision":null,"url":"public/sw-api-legacy.js"},{"revision":null,"url":"public/registerSW.js"},{"revision":"b29f852b0f96f5bc1fd24147d9130a5a","url":"manifest.webmanifest"}]);
+ie([{"revision":null,"url":"vite.config.js"},{"revision":null,"url":"tailwind.config.js"},{"revision":null,"url":"sw-api-legacy.js"},{"revision":null,"url":"registerSW.js"},{"revision":null,"url":"postcss.config.js"},{"revision":null,"url":"index.js"},{"revision":null,"url":"index.html"},{"revision":null,"url":"index.css"},{"revision":null,"url":"src/sw.js"},{"revision":null,"url":"src/style.css"},{"revision":null,"url":"src/main.js"},{"revision":null,"url":"src/index.html"},{"revision":null,"url":"src/utils/theme.js"},{"revision":null,"url":"src/utils/repeat.js"},{"revision":null,"url":"src/utils/db.js"},{"revision":null,"url":"public/sw-api-legacy.js"},{"revision":null,"url":"public/registerSW.js"},{"revision":"b29f852b0f96f5bc1fd24147d9130a5a","url":"manifest.webmanifest"}]);
 const oe = "TaskManagerDB", le = 1, f = "tasks";
 let h = null;
 function g() {
